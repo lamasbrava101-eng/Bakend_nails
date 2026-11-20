@@ -43,7 +43,13 @@ export const authController = {
       const { email, password } = req.body;
       const result = await authService.login(email, password);
       setRefreshCookie(res, result.refreshToken);
-      res.status(200).json({ data: { accessToken: result.accessToken, user: result.user } });
+      res.status(200).json({
+        data: {
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+          user: result.user,
+        },
+      });
     } catch (e) {
       next(e);
     }
@@ -51,10 +57,16 @@ export const authController = {
 
   async refresh(req: Request, res: Response, next: NextFunction) {
     try {
-      const token = req.cookies?.[REFRESH_COOKIE];
+      const token = req.cookies?.[REFRESH_COOKIE] ?? req.body?.refreshToken;
       const result = await authService.refresh(token);
       setRefreshCookie(res, result.refreshToken);
-      res.status(200).json({ data: { accessToken: result.accessToken, user: result.user } });
+      res.status(200).json({
+        data: {
+          accessToken: result.accessToken,
+          refreshToken: result.refreshToken,
+          user: result.user,
+        },
+      });
     } catch (e) {
       next(e);
     }
@@ -62,7 +74,7 @@ export const authController = {
 
   async logout(req: Request, res: Response, next: NextFunction) {
     try {
-      const token = req.cookies?.[REFRESH_COOKIE];
+      const token = req.cookies?.[REFRESH_COOKIE] ?? req.body?.refreshToken;
       await authService.logout(token);
       const opts = cookieOptions();
       res.clearCookie(REFRESH_COOKIE, {
