@@ -2,8 +2,10 @@ import { env } from '../config/env.js';
 import { AppError } from '../utils/errors.js';
 import { usersRepo } from '../repositories/users.repo.js';
 import { refreshTokensRepo } from '../repositories/refreshTokens.repo.js';
+import { passwordResetTokensRepo } from '../repositories/passwordResetTokens.repo.js';
 import { techSheetsRepo } from '../repositories/techSheets.repo.js';
 import { signAccessToken } from '../utils/jwt.js';
+import { sendPasswordResetEmail } from '../utils/mailer.js';
 import type { UserRecord } from '../types/index.js';
 
 function toPublicUser(user: UserRecord) {
@@ -79,5 +81,35 @@ export const authService = {
     if (refreshToken) {
       await refreshTokensRepo.revokeByToken(refreshToken);
     }
+  },
+
+  async forgotPassword(email: string) {
+    const user = await usersRepo.findByEmail(email);
+    // Always return generic success to avoid user enumeration
+    if (!user || user.deletedAt) {
+      return { message: 'Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña.' };
+    }
+    const expiresAt = new Date(Date.now() + 30 * 60 * 1000); // 30 min
+    const { token } = await passwordResetTokensRepo.create(user.id, expiresAt);
+    await sendPasswordResetEmail(user.email, token);
+    const exposeToken = env.nodeEnv !== 'production' || process.env.EXPOSE_RESET_TOKEN === 'true';
+    return {
+      message: 'Si el correo está registrado, recibirás instrucciones para restablecer tu contraseña.',
+      ...(exposeToken ? { resetToken: token } : {}),
+    };
+  },
+
+  async resetPassword(token: string, newPassword: string) {
+    const record = await passwordResetTokensRepo.findByToken(token);
+    if (!record || record.usedAt || new Date(record.expiresAt).getTime() < Date.now()) {
+      throw new AppError('VALIDATION_ERROR', 400, 'El código de recuperación es inválido o ha expirado');
+    }
+    const user = await usersRepo.findById(record.userId);
+    if (!user || user.deletedAt) {
+      throw new AppError('VALIDATION_ERROR', 400, 'El código de recuperación es inválido o ha expirado');
+    }
+    await usersRepo.updatePassword(user.id, newPassword);
+    await passwordResetTokensRepo.markUsed(record.id);
+    return { message: 'Contraseña actualizada correctamente. Ya puedes iniciar sesión.' };
   },
 };

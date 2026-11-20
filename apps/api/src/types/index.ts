@@ -27,6 +27,15 @@ export interface RefreshTokenRecord {
   createdAt: string;
 }
 
+export interface PasswordResetTokenRecord {
+  id: string;
+  userId: string;
+  tokenHash: string;
+  expiresAt: string;
+  usedAt: string | null;
+  createdAt: string;
+}
+
 export interface TechSheetRecord {
   id: string;
   clientId: string;

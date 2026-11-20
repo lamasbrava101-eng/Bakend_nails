@@ -49,6 +49,14 @@ export const usersRepo = {
     return user;
   },
 
+  async updatePassword(id: string, password: string): Promise<UserRecord | null> {
+    const user = store.users.get(id);
+    if (!user) return null;
+    user.passwordHash = await bcrypt.hash(password, env.bcryptRounds);
+    store.users.set(id, user);
+    return user;
+  },
+
   async verifyPassword(user: UserRecord, password: string): Promise<boolean> {
     return bcrypt.compare(password, user.passwordHash);
   },

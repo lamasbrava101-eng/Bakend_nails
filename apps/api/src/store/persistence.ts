@@ -6,6 +6,8 @@ export interface PersistedData {
   userEmailIndex: [string, string][];
   refreshTokens: [string, unknown][];
   refreshTokenHashIndex: [string, string][];
+  passwordResetTokens?: [string, unknown][];
+  passwordResetTokenHashIndex?: [string, string][];
   techSheets: [string, unknown][];
   catalogServices: [string, unknown][];
   catalogEffects: [string, unknown][];

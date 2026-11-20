@@ -6,6 +6,7 @@ import { loadFromDisk, saveToDisk, type PersistedData } from './persistence.js';
 import type {
   UserRecord,
   RefreshTokenRecord,
+  PasswordResetTokenRecord,
   TechSheetRecord,
   CatalogServiceRecord,
   CatalogEffectRecord,
@@ -23,6 +24,8 @@ export class InMemoryStore {
   userEmailIndex = new Map<string, string>();
   refreshTokens = new Map<string, RefreshTokenRecord>();
   refreshTokenHashIndex = new Map<string, string>();
+  passwordResetTokens = new Map<string, PasswordResetTokenRecord>();
+  passwordResetTokenHashIndex = new Map<string, string>();
   techSheets = new Map<string, TechSheetRecord>();
 
   catalogServices = new Map<string, CatalogServiceRecord>();
@@ -91,6 +94,8 @@ export class InMemoryStore {
     this.wrapMap(this.userEmailIndex);
     this.wrapMap(this.refreshTokens);
     this.wrapMap(this.refreshTokenHashIndex);
+    this.wrapMap(this.passwordResetTokens);
+    this.wrapMap(this.passwordResetTokenHashIndex);
     this.wrapMap(this.techSheets);
     this.wrapMap(this.catalogServices);
     this.wrapMap(this.catalogEffects);
@@ -116,6 +121,8 @@ export class InMemoryStore {
       userEmailIndex: [...this.userEmailIndex.entries()],
       refreshTokens: [...this.refreshTokens.entries()],
       refreshTokenHashIndex: [...this.refreshTokenHashIndex.entries()],
+      passwordResetTokens: [...this.passwordResetTokens.entries()],
+      passwordResetTokenHashIndex: [...this.passwordResetTokenHashIndex.entries()],
       techSheets: [...this.techSheets.entries()],
       catalogServices: [...this.catalogServices.entries()],
       catalogEffects: [...this.catalogEffects.entries()],
@@ -140,6 +147,8 @@ export class InMemoryStore {
       this.replaceMap(this.userEmailIndex, data.userEmailIndex as [string, string][]);
       this.replaceMap(this.refreshTokens, data.refreshTokens as [string, RefreshTokenRecord][]);
       this.replaceMap(this.refreshTokenHashIndex, data.refreshTokenHashIndex as [string, string][]);
+      this.replaceMap(this.passwordResetTokens, (data.passwordResetTokens ?? []) as [string, PasswordResetTokenRecord][]);
+      this.replaceMap(this.passwordResetTokenHashIndex, (data.passwordResetTokenHashIndex ?? []) as [string, string][]);
       this.replaceMap(this.techSheets, data.techSheets as [string, TechSheetRecord][]);
       this.replaceMap(this.catalogServices, data.catalogServices as [string, CatalogServiceRecord][]);
       this.replaceMap(this.catalogEffects, data.catalogEffects as [string, CatalogEffectRecord][]);
@@ -171,6 +180,8 @@ export class InMemoryStore {
     clear(this.userEmailIndex);
     clear(this.refreshTokens);
     clear(this.refreshTokenHashIndex);
+    clear(this.passwordResetTokens);
+    clear(this.passwordResetTokenHashIndex);
     clear(this.techSheets);
     clear(this.catalogServices);
     clear(this.catalogEffects);
