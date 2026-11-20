@@ -8,7 +8,7 @@ const serviceBase = {
   name: z.string().min(1),
   category: serviceCategoryEnum,
   description: z.string().min(1).nullable().optional(),
-  imageUrl: z.string().url().nullable().optional(),
+  imageUrl: z.string().min(1).nullable().optional(),
   basePrice: z.number().nonnegative(),
   baseDurationMin: z.number().int().positive(),
   removalPrice: z.number().nonnegative().optional(),
@@ -25,7 +25,7 @@ const effectBase = {
   price: z.number().nonnegative(),
   durationMin: z.number().int().nonnegative(),
   active: z.boolean().optional(),
-  imageUrl: z.string().url().nullable().optional(),
+  imageUrl: z.string().min(1).nullable().optional(),
 };
 
 export const createEffectSchema = z.object(effectBase).strict();
