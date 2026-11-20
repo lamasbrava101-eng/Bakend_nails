@@ -48,6 +48,8 @@ export interface CatalogServiceRecord {
   imageUrl: string | null;
   basePrice: number;
   baseDurationMin: number;
+  removalPrice: number;
+  removalDurationMin: number;
   active: boolean;
 }
 

@@ -11,6 +11,8 @@ const serviceBase = {
   imageUrl: z.string().url().nullable().optional(),
   basePrice: z.number().nonnegative(),
   baseDurationMin: z.number().int().positive(),
+  removalPrice: z.number().nonnegative().optional(),
+  removalDurationMin: z.number().int().nonnegative().optional(),
   active: z.boolean().optional(),
 };
 

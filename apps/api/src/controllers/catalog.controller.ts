@@ -25,7 +25,12 @@ export const catalogController = {
         }
         category = parsed.data;
       }
-      const services = catalogRepo.listServices(category);
+      const includeInactive =
+        req.query.includeInactive === 'true' ||
+        req.query.includeInactive === '1' ||
+        req.query.all === 'true' ||
+        req.query.all === '1';
+      const services = catalogRepo.listServices(category, includeInactive);
       res.status(200).json({ data: services });
     } catch (e) {
       next(e);
@@ -42,7 +47,12 @@ export const catalogController = {
         }
         type = parsed.data;
       }
-      const effects = catalogRepo.listEffects(type);
+      const includeInactive =
+        req.query.includeInactive === 'true' ||
+        req.query.includeInactive === '1' ||
+        req.query.all === 'true' ||
+        req.query.all === '1';
+      const effects = catalogRepo.listEffects(type, includeInactive);
       res.status(200).json({ data: effects });
     } catch (e) {
       next(e);

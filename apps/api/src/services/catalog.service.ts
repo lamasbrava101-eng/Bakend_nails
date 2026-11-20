@@ -27,11 +27,17 @@ export const catalogService = {
     let removalPrice = 0;
     let removalDuration = 0;
     if (input.includeRemoval) {
-      const removal = catalogRepo.listEffects('REMOVAL', false)[0]
-        ?? catalogRepo.listEffects('REMOVAL', true)[0];
-      if (removal) {
-        removalPrice = removal.price;
-        removalDuration = removal.durationMin;
+      // Prefer per-service removal settings when defined; fallback to a REMOVAL effect
+      if ((service.removalPrice ?? 0) > 0 || (service.removalDurationMin ?? 0) > 0) {
+        removalPrice = service.removalPrice ?? 0;
+        removalDuration = service.removalDurationMin ?? 0;
+      } else {
+        const removal = catalogRepo.listEffects('REMOVAL', false)[0]
+          ?? catalogRepo.listEffects('REMOVAL', true)[0];
+        if (removal) {
+          removalPrice = removal.price;
+          removalDuration = removal.durationMin;
+        }
       }
     }
 

@@ -33,6 +33,8 @@ export const catalogRepo = {
       imageUrl: input.imageUrl ?? null,
       basePrice: input.basePrice,
       baseDurationMin: input.baseDurationMin,
+      removalPrice: input.removalPrice ?? 0,
+      removalDurationMin: input.removalDurationMin ?? 0,
       active: input.active ?? true,
     };
     store.catalogServices.set(rec.id, rec);
@@ -47,6 +49,8 @@ export const catalogRepo = {
     if (patch.imageUrl !== undefined) rec.imageUrl = patch.imageUrl ?? null;
     if (patch.basePrice !== undefined) rec.basePrice = patch.basePrice;
     if (patch.baseDurationMin !== undefined) rec.baseDurationMin = patch.baseDurationMin;
+    if (patch.removalPrice !== undefined) rec.removalPrice = patch.removalPrice;
+    if (patch.removalDurationMin !== undefined) rec.removalDurationMin = patch.removalDurationMin;
     if (patch.active !== undefined) rec.active = patch.active;
     store.catalogServices.set(id, rec);
     return rec;

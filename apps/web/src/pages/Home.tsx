@@ -283,7 +283,12 @@ export function Home() {
                         : 'bg-[#F2DFD8] text-[#3E2723] border-[#C59B76] hover:bg-[#E8D0C8]'
                     }`}
                   >
-                    Con retiro (+30 min)
+                    {(() => {
+                      const s = services.find((x) => x.id === selectedServiceId);
+                      const mins = s?.removalDurationMin ?? 30;
+                      const price = s?.removalPrice ?? 0;
+                      return `Con retiro (+${mins} min${price ? `, +$${price.toFixed(2)}` : ''})`;
+                    })()}
                   </button>
                 </div>
               </div>

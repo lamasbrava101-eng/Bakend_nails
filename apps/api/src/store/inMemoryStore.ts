@@ -243,14 +243,14 @@ export class InMemoryStore {
     const origSetL = Map.prototype.set.call.bind(Map.prototype.set) as (m: Map<string, NailLengthRecord>, k: string, v: NailLengthRecord) => Map<string, NailLengthRecord>;
 
     const services: Array<Omit<CatalogServiceRecord, 'id'>> = [
-      { name: 'Manicura Clásica', category: 'SEMI_PERMANENT', description: 'Limpieza, limado y esmalte tradicional.', imageUrl: UNSPLASH(NAIL_A), basePrice: 8, baseDurationMin: 30, active: true },
-      { name: 'Manicura Semipermanente', category: 'SEMI_PERMANENT', description: 'Esmalte semipermanente de larga duración.', imageUrl: UNSPLASH(NAIL_B), basePrice: 12, baseDurationMin: 45, active: true },
-      { name: 'Acrílicas Naturales', category: 'ACRYLIC', description: 'Extensiones acrílicas con acabado natural.', imageUrl: UNSPLASH(NAIL_A), basePrice: 20, baseDurationMin: 90, active: true },
-      { name: 'Acrílicas con Diseño', category: 'ACRYLIC', description: 'Acrílicas con arte y decoración.', imageUrl: UNSPLASH(NAIL_B), basePrice: 25, baseDurationMin: 120, active: true },
-      { name: 'Soft Gel Corto', category: 'SOFT_GEL', description: 'Soft gel de duración media, acabado suave.', imageUrl: UNSPLASH(NAIL_A), basePrice: 15, baseDurationMin: 60, active: true },
-      { name: 'Soft Gel Largo', category: 'SOFT_GEL', description: 'Soft gel para uñas largas.', imageUrl: UNSPLASH(NAIL_B), basePrice: 18, baseDurationMin: 75, active: true },
-      { name: 'Nail Art Minimalista', category: 'NAIL_ART', description: 'Diseños minimalistas a mano alzada.', imageUrl: UNSPLASH(NAIL_A), basePrice: 10, baseDurationMin: 40, active: true },
-      { name: 'Nail Art Premium', category: 'NAIL_ART', description: 'Arte detallado con piedras y efectos.', imageUrl: UNSPLASH(NAIL_B), basePrice: 22, baseDurationMin: 90, active: true },
+      { name: 'Manicura Clásica', category: 'SEMI_PERMANENT', description: 'Limpieza, limado y esmalte tradicional.', imageUrl: UNSPLASH(NAIL_A), basePrice: 8, baseDurationMin: 30, removalPrice: 3, removalDurationMin: 15, active: true },
+      { name: 'Manicura Semipermanente', category: 'SEMI_PERMANENT', description: 'Esmalte semipermanente de larga duración.', imageUrl: UNSPLASH(NAIL_B), basePrice: 12, baseDurationMin: 45, removalPrice: 3, removalDurationMin: 15, active: true },
+      { name: 'Acrílicas Naturales', category: 'ACRYLIC', description: 'Extensiones acrílicas con acabado natural.', imageUrl: UNSPLASH(NAIL_A), basePrice: 20, baseDurationMin: 90, removalPrice: 5, removalDurationMin: 30, active: true },
+      { name: 'Acrílicas con Diseño', category: 'ACRYLIC', description: 'Acrílicas con arte y decoración.', imageUrl: UNSPLASH(NAIL_B), basePrice: 25, baseDurationMin: 120, removalPrice: 5, removalDurationMin: 30, active: true },
+      { name: 'Soft Gel Corto', category: 'SOFT_GEL', description: 'Soft gel de duración media, acabado suave.', imageUrl: UNSPLASH(NAIL_A), basePrice: 15, baseDurationMin: 60, removalPrice: 4, removalDurationMin: 20, active: true },
+      { name: 'Soft Gel Largo', category: 'SOFT_GEL', description: 'Soft gel para uñas largas.', imageUrl: UNSPLASH(NAIL_B), basePrice: 18, baseDurationMin: 75, removalPrice: 4, removalDurationMin: 20, active: true },
+      { name: 'Nail Art Minimalista', category: 'NAIL_ART', description: 'Diseños minimalistas a mano alzada.', imageUrl: UNSPLASH(NAIL_A), basePrice: 10, baseDurationMin: 40, removalPrice: 3, removalDurationMin: 15, active: true },
+      { name: 'Nail Art Premium', category: 'NAIL_ART', description: 'Arte detallado con piedras y efectos.', imageUrl: UNSPLASH(NAIL_B), basePrice: 22, baseDurationMin: 90, removalPrice: 3, removalDurationMin: 15, active: true },
     ];
 
     const effects: Array<Omit<CatalogEffectRecord, 'id'>> = [

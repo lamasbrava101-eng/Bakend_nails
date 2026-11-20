@@ -6,6 +6,7 @@ dist/
 build/
 *.tsbuildinfo
 .vite/
+dev-dist/
 
 # Environment variables (keep examples)
 .env
