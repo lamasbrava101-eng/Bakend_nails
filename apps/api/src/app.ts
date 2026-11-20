@@ -10,8 +10,11 @@ import adminRoutes from './routes/admin.routes.js';
 import inventoryRoutes from './routes/inventory.routes.js';
 import { studioConfigController } from './controllers/studioConfig.controller.js';
 import { catalogController } from './controllers/catalog.controller.js';
+import { requireAuth } from './middleware/requireAuth.js';
+import { requireRole } from './middleware/requireRole.js';
 import { validate } from './middleware/validate.js';
 import { quoteSchema } from './validators/catalog.validators.js';
+import { studioConfigSchema } from './validators/studioConfig.validators.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { env } from './config/env.js';
 
@@ -59,6 +62,8 @@ export function createApp() {
   api.post('/quote', validate(quoteSchema), catalogController.quote);
   api.use('/', appointmentRoutes);
   api.get('/studio-config', studioConfigController.get);
+  api.put('/studio-config', requireAuth, requireRole('ADMIN', 'MANICURIST'), validate(studioConfigSchema), studioConfigController.update);
+  api.patch('/studio-config', requireAuth, requireRole('ADMIN', 'MANICURIST'), validate(studioConfigSchema), studioConfigController.update);
   api.use('/admin', adminRoutes);
   api.use('/inventory', inventoryRoutes);
   app.use('/api/v1', api);

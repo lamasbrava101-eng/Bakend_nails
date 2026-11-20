@@ -11,6 +11,8 @@ export const createAppointmentSchema = z
     effectIds: z.array(z.string().min(1)).default([]),
     includeRemoval: z.boolean().default(false),
     startAt: z.string().min(1),
+    voucherUrl: z.string().min(1).optional(),
+    voucherData: z.string().min(1).optional(),
   })
   .strict();
 

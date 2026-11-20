@@ -15,7 +15,66 @@ import type {
   AppointmentLogRecord,
   InventoryItemRecord,
   StudioConfigRecord,
+  BankAccountRecord,
 } from '../types/index.js';
+
+function normalizeStudioConfig(raw: Partial<StudioConfigRecord> | null | undefined): StudioConfigRecord {
+  const base = raw ?? {};
+  const accountsInput = Array.isArray((base as any).accounts) ? ((base as any).accounts as any[]) : [];
+  let accounts: BankAccountRecord[] = accountsInput
+    .filter((a) => a && typeof a === 'object')
+    .map((a, idx) => ({
+      id: typeof a.id === 'string' && a.id ? a.id : `acc-${idx + 1}`,
+      bankName: String(a.bankName ?? ''),
+      accountType: String(a.accountType ?? ''),
+      accountNumber: String(a.accountNumber ?? ''),
+      accountHolder: String(a.accountHolder ?? ''),
+      idNumber: a.idNumber != null ? String(a.idNumber) : undefined,
+      email: a.email != null ? String(a.email) : undefined,
+      active: a.active !== false,
+    }))
+    .filter((a) => a.bankName || a.accountNumber || a.accountHolder);
+
+  const legacyBankName = String(base.bankName ?? '');
+  const legacyAccountHolder = String(base.accountHolder ?? '');
+  const legacyAccountNumber = String(base.accountNumber ?? '');
+  const legacyAccountType = String(base.accountType ?? '');
+  const legacyIdNumber = String(base.idNumber ?? '');
+
+  if (accounts.length === 0 && (legacyBankName || legacyAccountHolder || legacyAccountNumber)) {
+    accounts = [
+      {
+        id: 'acc-1',
+        bankName: legacyBankName,
+        accountType: legacyAccountType,
+        accountNumber: legacyAccountNumber,
+        accountHolder: legacyAccountHolder,
+        idNumber: legacyIdNumber || undefined,
+        active: true,
+      },
+    ];
+  }
+
+  const primary = accounts.find((a) => a.active !== false) ?? accounts[0];
+  const depositAmountNum = Number((base as any).depositAmount);
+  const depositAmount = Number.isFinite(depositAmountNum) && depositAmountNum > 0 ? depositAmountNum : 5;
+
+  const recipientIdNumber = String((base as any).recipientIdNumber ?? base.idNumber ?? primary?.idNumber ?? '');
+  const recipientEmail = String((base as any).recipientEmail ?? primary?.email ?? '');
+
+  return {
+    depositAmount,
+    recipientIdNumber,
+    recipientEmail,
+    bankName: String(primary?.bankName ?? base.bankName ?? ''),
+    accountHolder: String(primary?.accountHolder ?? base.accountHolder ?? ''),
+    accountNumber: String(primary?.accountNumber ?? base.accountNumber ?? ''),
+    accountType: String(primary?.accountType ?? base.accountType ?? ''),
+    idNumber: String(base.idNumber ?? recipientIdNumber ?? primary?.idNumber ?? ''),
+    instructions: String(base.instructions ?? ''),
+    accounts,
+  };
+}
 
 const UNSPLASH = (id: string) => `https://images.unsplash.com/${id}?auto=format&fit=crop&w=800&q=80`;
 
@@ -37,12 +96,16 @@ export class InMemoryStore {
   inventoryItems = new Map<string, InventoryItemRecord>();
 
   private _studioConfig: StudioConfigRecord = {
+    depositAmount: 5,
+    recipientIdNumber: '',
+    recipientEmail: '',
     bankName: '',
     accountHolder: '',
     accountNumber: '',
     accountType: '',
     idNumber: '',
     instructions: '',
+    accounts: [],
   };
 
   private persistTimer: NodeJS.Timeout | null = null;
@@ -61,11 +124,11 @@ export class InMemoryStore {
     return this._studioConfig;
   }
   set studioConfig(v: StudioConfigRecord) {
-    this._studioConfig = v;
+    this._studioConfig = normalizeStudioConfig(v);
     this.schedulePersist();
   }
   setStudioConfig(patch: Partial<StudioConfigRecord>): void {
-    this._studioConfig = { ...this._studioConfig, ...patch };
+    this._studioConfig = normalizeStudioConfig({ ...this._studioConfig, ...patch });
     this.schedulePersist();
   }
 
@@ -156,7 +219,7 @@ export class InMemoryStore {
       this.replaceMap(this.appointments, data.appointments as [string, AppointmentRecord][]);
       this.replaceMap(this.appointmentLogs, data.appointmentLogs as [string, AppointmentLogRecord[]][]);
       this.replaceMap(this.inventoryItems, data.inventoryItems as [string, InventoryItemRecord][]);
-      if (data.studioConfig) this._studioConfig = data.studioConfig as StudioConfigRecord;
+      if (data.studioConfig) this._studioConfig = normalizeStudioConfig(data.studioConfig as Partial<StudioConfigRecord>);
     } catch {
       // if load fails, keep seeded defaults
       this.persistNow();
@@ -236,14 +299,28 @@ export class InMemoryStore {
   }
 
   private seedStudioConfig(): void {
-    this._studioConfig = {
+    this._studioConfig = normalizeStudioConfig({
+      depositAmount: 5,
+      recipientIdNumber: '1234567890',
+      recipientEmail: 'studio@nailstudio.com',
       bankName: 'Banco Pichincha',
       accountHolder: 'NailStudio',
       accountNumber: '1234567890',
       accountType: 'Ahorros',
       idNumber: '1234567890',
       instructions: 'Transferir $5.00 y subir comprobante.',
-    };
+      accounts: [
+        {
+          bankName: 'Banco Pichincha',
+          accountType: 'Ahorros',
+          accountNumber: '1234567890',
+          accountHolder: 'NailStudio',
+          idNumber: '1234567890',
+          email: 'studio@nailstudio.com',
+          active: true,
+        },
+      ],
+    });
   }
 
   private seedCatalog(): void {

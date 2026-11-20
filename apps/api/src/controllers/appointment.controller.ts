@@ -24,7 +24,7 @@ export const appointmentController = {
 
   async create(req: Request, res: Response, next: NextFunction) {
     try {
-      const appt = appointmentService.create(req.body);
+      const appt = await appointmentService.create(req.body);
       res.status(201).json({ data: appt });
     } catch (e) {
       next(e);
@@ -42,7 +42,7 @@ export const appointmentController = {
 
   async voucher(req: Request, res: Response, next: NextFunction) {
     try {
-      const appt = appointmentService.uploadVoucher(req.params.id, req.body);
+      const appt = await appointmentService.uploadVoucher(req.params.id, req.body);
       res.status(200).json({ data: appt });
     } catch (e) {
       next(e);

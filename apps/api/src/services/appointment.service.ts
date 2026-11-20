@@ -4,6 +4,7 @@ import { appointmentRepo } from '../repositories/appointment.repo.js';
 import { catalogRepo } from '../repositories/catalog.repo.js';
 import { catalogService } from './catalog.service.js';
 import { withinWorkingHours } from '../utils/time.js';
+import { validateVoucherImage } from '../utils/voucherOcr.js';
 import type {
   AppointmentRecord,
   AppointmentStatus,
@@ -59,7 +60,7 @@ export const appointmentService = {
     return slots;
   },
 
-  create(input: CreateAppointmentInput): AppointmentRecord {
+  async create(input: CreateAppointmentInput): Promise<AppointmentRecord> {
     expirePendingAppointments();
 
     const service = catalogRepo.findService(input.serviceId);
@@ -94,6 +95,18 @@ export const appointmentService = {
       }
     }
 
+    const voucherInput = (input.voucherData ?? input.voucherUrl ?? '').trim();
+    let voucherUrl: string | null = null;
+    let voucherUploadedAt: string | null = null;
+    if (voucherInput) {
+      const ocr = await validateVoucherImage(voucherInput, store.studioConfig);
+      if (!ocr.ok) {
+        throw new AppError('VALIDATION_ERROR', 400, ocr.message);
+      }
+      voucherUrl = voucherInput;
+      voucherUploadedAt = new Date().toISOString();
+    }
+
     const rec: AppointmentRecord = {
       id: store.newId(),
       clientName: input.clientName,
@@ -109,8 +122,8 @@ export const appointmentService = {
       durationMin: quote.durationMin,
       priceTotal: quote.priceTotal,
       status: 'PENDING_PAYMENT',
-      voucherUrl: null,
-      voucherUploadedAt: null,
+      voucherUrl,
+      voucherUploadedAt,
       remindedAt: null,
       createdAt: new Date().toISOString(),
       deletedAt: null,
@@ -126,7 +139,7 @@ export const appointmentService = {
     return appt;
   },
 
-  uploadVoucher(id: string, body: { voucherUrl?: string; voucherData?: string }): AppointmentRecord {
+  async uploadVoucher(id: string, body: { voucherUrl?: string; voucherData?: string }): Promise<AppointmentRecord> {
     expirePendingAppointments();
     const appt = appointmentRepo.find(id);
     if (!appt) throw new AppError('NOT_FOUND', 404, 'Appointment not found');
@@ -136,8 +149,14 @@ export const appointmentService = {
     if (appt.status === 'COMPLETED' || appt.status === 'CANCELLED') {
       throw new AppError('INVALID_STATUS_TRANSITION', 409, 'Invalid status transition');
     }
-    const url = body.voucherUrl ?? body.voucherData ?? null;
+    const url = (body.voucherUrl ?? body.voucherData ?? '').trim();
     if (!url) throw new AppError('VALIDATION_ERROR', 422, 'voucherUrl or voucherData required');
+
+    const ocr = await validateVoucherImage(url, store.studioConfig);
+    if (!ocr.ok) {
+      throw new AppError('VALIDATION_ERROR', 400, ocr.message);
+    }
+
     const updated = appointmentRepo.update(id, {
       voucherUrl: url,
       voucherUploadedAt: new Date().toISOString(),

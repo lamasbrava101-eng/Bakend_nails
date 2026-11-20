@@ -131,13 +131,29 @@ export interface InventoryItemRecord {
   deletedAt: string | null;
 }
 
+export interface BankAccountRecord {
+  id?: string;
+  bankName: string;
+  accountType: string;
+  accountNumber: string;
+  accountHolder: string;
+  idNumber?: string;
+  email?: string;
+  active?: boolean;
+}
+
 export interface StudioConfigRecord {
+  depositAmount: number;
+  recipientIdNumber: string;
+  recipientEmail: string;
+  // legacy/compat fields (can mirror primary account)
   bankName: string;
   accountHolder: string;
   accountNumber: string;
   accountType: string;
   idNumber: string;
   instructions: string;
+  accounts: BankAccountRecord[];
 }
 
 declare global {

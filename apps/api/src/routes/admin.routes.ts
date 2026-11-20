@@ -21,7 +21,7 @@ router.post('/appointments/:id/cancel', validate(cancelAppointmentSchema), appoi
 router.post('/appointments/:id/log', validate(appointmentLogSchema), appointmentController.addLog);
 router.get('/appointments/:id/logs', appointmentController.logs);
 
-// Studio config
+// Studio config (admin endpoints kept; public/protected top-level endpoints also available)
 router.get('/studio-config', studioConfigController.get);
 router.put('/studio-config', validate(studioConfigSchema), studioConfigController.update);
 
