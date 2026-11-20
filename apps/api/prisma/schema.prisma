@@ -1,0 +1,185 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CLIENT
+  MANICURIST
+  ADMIN
+}
+
+model User {
+  id           String    @id @default(uuid())
+  email        String    @unique
+  passwordHash String    @map("password_hash")
+  role         Role      @default(CLIENT)
+  firstName    String?   @map("first_name")
+  lastName     String?   @map("last_name")
+  phone        String?
+  createdAt    DateTime  @default(now()) @map("created_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  techSheet     ClientTechSheet?
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+model ClientTechSheet {
+  id             String   @id @default(uuid())
+  clientId       String   @unique @map("client_id")
+  client         User     @relation(fields: [clientId], references: [id])
+  allergies      String?
+  nailType       String?  @map("nail_type")
+  preferredTones String?  @map("preferred_tones")
+  photoUrl       String?  @map("photo_url")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("client_tech_sheets")
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid())
+  userId    String    @map("user_id")
+  user      User      @relation(fields: [userId], references: [id])
+  tokenHash String    @map("token_hash")
+  expiresAt DateTime  @map("expires_at")
+  revokedAt DateTime? @map("revoked_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@map("refresh_tokens")
+}
+
+enum ServiceCategory {
+  ACRYLIC
+  SOFT_GEL
+  SEMI_PERMANENT
+  NAIL_ART
+}
+
+enum EffectType {
+  EFFECT
+  REMOVAL
+}
+
+enum NailLengthCode {
+  S
+  M
+  L
+  XL
+}
+
+model CatalogService {
+  id              String          @id @default(uuid())
+  name            String
+  category        ServiceCategory
+  description     String?
+  imageUrl        String?         @map("image_url")
+  basePrice       Decimal         @db.Decimal(10, 2) @map("base_price")
+  baseDurationMin Int             @map("base_duration_min")
+  active          Boolean         @default(true)
+  createdAt       DateTime        @default(now()) @map("created_at")
+
+  @@map("catalog_services")
+}
+
+model CatalogEffect {
+  id          String     @id @default(uuid())
+  name        String
+  type        EffectType
+  price       Decimal    @db.Decimal(10, 2)
+  durationMin Int        @map("duration_min")
+  active      Boolean    @default(true)
+  imageUrl    String?    @map("image_url")
+  createdAt   DateTime   @default(now()) @map("created_at")
+
+  @@map("catalog_effects")
+}
+
+model NailLength {
+  id               String         @id @default(uuid())
+  code             NailLengthCode @unique
+  label            String
+  priceModifier    Decimal        @db.Decimal(10, 2) @map("price_modifier")
+  durationModifier Int            @map("duration_modifier")
+  active           Boolean        @default(true)
+
+  @@map("nail_lengths")
+}
+
+enum AppointmentStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  EXPIRED
+}
+
+model Appointment {
+  id                 String            @id @default(uuid())
+  clientName         String            @map("client_name")
+  clientPhone        String            @map("client_phone")
+  clientEmail        String            @map("client_email")
+  serviceId          String            @map("service_id")
+  serviceName        String            @map("service_name")
+  length             String
+  effectIds          String?           @map("effect_ids")
+  includeRemoval     Boolean           @default(false) @map("include_removal")
+  startAt            DateTime          @map("start_at")
+  endAt              DateTime          @map("end_at")
+  durationMin        Int               @map("duration_min")
+  priceTotal         Decimal           @db.Decimal(10, 2) @map("price_total")
+  status             AppointmentStatus @default(PENDING_PAYMENT)
+  voucherUrl         String?           @map("voucher_url")
+  voucherUploadedAt  DateTime?         @map("voucher_uploaded_at")
+  remindedAt         DateTime?         @map("reminded_at")
+  createdAt          DateTime          @default(now()) @map("created_at")
+  deletedAt          DateTime?         @map("deleted_at")
+
+  logs AppointmentLog[]
+
+  @@map("appointments")
+}
+
+model AppointmentLog {
+  id            String      @id @default(uuid())
+  appointmentId String      @map("appointment_id")
+  appointment   Appointment @relation(fields: [appointmentId], references: [id])
+  note          String
+  createdAt     DateTime    @default(now()) @map("created_at")
+
+  @@map("appointment_logs")
+}
+
+model InventoryItem {
+  id                String    @id @default(uuid())
+  name              String
+  brand             String?
+  quantity          Decimal   @db.Decimal(10, 2)
+  unit              String
+  cost              Decimal   @db.Decimal(10, 2) @default(0)
+  purchasedAt       DateTime? @map("purchased_at")
+  notes             String?
+  criticalThreshold Decimal?  @db.Decimal(10, 2) @map("critical_threshold")
+  createdAt         DateTime  @default(now()) @map("created_at")
+  deletedAt         DateTime? @map("deleted_at")
+
+  @@map("inventory_items")
+}
+
+model StudioConfig {
+  id            String   @id @default(uuid())
+  bankName      String   @map("bank_name")
+  accountHolder String   @map("account_holder")
+  accountNumber String   @map("account_number")
+  accountType   String   @map("account_type")
+  idNumber      String   @map("id_number")
+  instructions  String
+
+  @@map("studio_config")
+}
