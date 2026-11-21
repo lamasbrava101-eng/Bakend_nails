@@ -90,6 +90,7 @@ export type AppointmentStatus =
 
 export interface AppointmentRecord {
   id: string;
+  clientId?: string | null;
   clientName: string;
   clientPhone: string;
   clientEmail: string;
@@ -149,6 +150,11 @@ export interface StudioShiftRecord {
   active?: boolean;
 }
 
+export interface BlockedSlotRecord {
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:mm (inicio del turno)
+}
+
 export interface StudioConfigRecord {
   depositAmount: number;
   recipientIdNumber: string;
@@ -163,6 +169,10 @@ export interface StudioConfigRecord {
   accounts: BankAccountRecord[];
   // Turnos fijos configurables (bloques de horario)
   shifts: StudioShiftRecord[];
+  // Días de atención y bloqueos
+  workingDays: number[]; // 0..6 (0=Domingo ... 6=Sábado), por defecto Lun-Sáb
+  blockedDates: string[]; // YYYY-MM-DD (día completo sin atención)
+  blockedSlots: BlockedSlotRecord[]; // bloqueos puntuales por fecha y turno
   // Textos/mensajes personalizables de la app
   brandName: string;
   homeWelcomeTitle: string;

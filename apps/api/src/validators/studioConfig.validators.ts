@@ -24,6 +24,13 @@ const shiftSchema = z
   })
   .strict();
 
+const blockedSlotSchema = z
+  .object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    startTime: hhmm,
+  })
+  .strict();
+
 export const studioConfigSchema = z
   .object({
     depositAmount: z.coerce.number().positive().optional(),
@@ -39,6 +46,10 @@ export const studioConfigSchema = z
     accounts: z.array(bankAccountSchema).optional(),
     // turnos fijos configurables
     shifts: z.array(shiftSchema).optional(),
+    // días de atención y bloqueos
+    workingDays: z.array(z.coerce.number().int().min(0).max(6)).optional(),
+    blockedDates: z.array(z.string().regex(/^\d{4}-\d{2}-\d{2}$/)).optional(),
+    blockedSlots: z.array(blockedSlotSchema).optional(),
     // textos/mensajes personalizables
     brandName: z.string().optional(),
     homeWelcomeTitle: z.string().optional(),

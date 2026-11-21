@@ -17,6 +17,7 @@ import type {
   StudioConfigRecord,
   BankAccountRecord,
   StudioShiftRecord,
+  BlockedSlotRecord,
 } from '../types/index.js';
 
 const DEFAULT_SHIFTS: StudioShiftRecord[] = [
@@ -25,6 +26,8 @@ const DEFAULT_SHIFTS: StudioShiftRecord[] = [
   { start: '14:00', end: '17:00', label: '14:00 - 17:00', active: true },
   { start: '17:00', end: '20:00', label: '17:00 - 20:00', active: true },
 ];
+
+const DEFAULT_WORKING_DAYS = [1, 2, 3, 4, 5, 6]; // Lun-Sáb
 
 const DEFAULT_BRAND_NAME = 'Nb_nails';
 const DEFAULT_HOME_WELCOME_TITLE = 'Bienvenida a tu espacio';
@@ -44,6 +47,43 @@ function normalizeShift(raw: any, idx: number): StudioShiftRecord | null {
   const label = typeof raw.label === 'string' && raw.label.trim() ? raw.label.trim() : `${start} - ${end}`;
   return { start, end, label, active: raw.active !== false, id: undefined } as StudioShiftRecord & { id?: string };
   void idx;
+}
+
+function normalizeWorkingDays(raw: any): number[] {
+  if (!Array.isArray(raw)) return [...DEFAULT_WORKING_DAYS];
+  const nums = raw
+    .map((d) => Number(d))
+    .filter((d) => Number.isInteger(d) && d >= 0 && d <= 6);
+  const unique = [...new Set(nums)].sort((a, b) => a - b);
+  return unique.length > 0 ? unique : [...DEFAULT_WORKING_DAYS];
+}
+
+function normalizeBlockedDates(raw: any): string[] {
+  if (!Array.isArray(raw)) return [];
+  const dates = raw
+    .map((d) => String(d ?? '').trim())
+    .filter((d) => /^\d{4}-\d{2}-\d{2}$/.test(d));
+  return [...new Set(dates)].sort();
+}
+
+function normalizeBlockedSlots(raw: any): BlockedSlotRecord[] {
+  if (!Array.isArray(raw)) return [];
+  const slots = raw
+    .filter((s) => s && typeof s === 'object')
+    .map((s: any) => ({
+      date: String(s.date ?? '').trim(),
+      startTime: String(s.startTime ?? '').trim(),
+    }))
+    .filter((s) => /^\d{4}-\d{2}-\d{2}$/.test(s.date) && /^\d{2}:\d{2}$/.test(s.startTime));
+  const seen = new Set<string>();
+  const out: BlockedSlotRecord[] = [];
+  for (const s of slots) {
+    const key = `${s.date}|${s.startTime}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(s);
+  }
+  return out.sort((a, b) => (a.date === b.date ? a.startTime.localeCompare(b.startTime) : a.date.localeCompare(b.date)));
 }
 
 function normalizeStudioConfig(raw: Partial<StudioConfigRecord> | null | undefined): StudioConfigRecord {
@@ -110,6 +150,10 @@ function normalizeStudioConfig(raw: Partial<StudioConfigRecord> | null | undefin
   const arrivalReference = String(base.arrivalReference ?? '');
   const mapsUrl = String(base.mapsUrl ?? '');
 
+  const workingDays = normalizeWorkingDays(base.workingDays);
+  const blockedDates = normalizeBlockedDates(base.blockedDates);
+  const blockedSlots = normalizeBlockedSlots(base.blockedSlots);
+
   return {
     depositAmount,
     recipientIdNumber,
@@ -122,6 +166,9 @@ function normalizeStudioConfig(raw: Partial<StudioConfigRecord> | null | undefin
     instructions: String(base.instructions ?? ''),
     accounts,
     shifts,
+    workingDays,
+    blockedDates,
+    blockedSlots,
     brandName,
     homeWelcomeTitle,
     homeWelcomeSubtitle,
@@ -385,6 +432,9 @@ export class InMemoryStore {
         { start: '14:00', end: '17:00', label: '14:00 - 17:00', active: true },
         { start: '17:00', end: '20:00', label: '17:00 - 20:00', active: true },
       ],
+      workingDays: [1, 2, 3, 4, 5, 6],
+      blockedDates: [],
+      blockedSlots: [],
       brandName: 'Nb_nails',
       homeWelcomeTitle: 'Bienvenida a tu espacio',
       homeWelcomeSubtitle:

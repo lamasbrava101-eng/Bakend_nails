@@ -63,15 +63,62 @@ export interface AvailabilityBlock {
   available: boolean;
 }
 
+export interface AvailabilityResponse {
+  dayBlocked: boolean;
+  message?: string;
+  blocks: AvailabilityBlock[];
+}
+
+function weekdayOfDate(dateStr: string): number {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d)).getUTCDay(); // 0..6
+}
+
+function isDateBlocked(date: string): boolean {
+  const cfg = store.studioConfig;
+  const workingDays = Array.isArray(cfg.workingDays) && cfg.workingDays.length > 0 ? cfg.workingDays : [1, 2, 3, 4, 5, 6];
+  const weekday = weekdayOfDate(date);
+  if (!workingDays.includes(weekday)) return true;
+  const blockedDates = Array.isArray(cfg.blockedDates) ? cfg.blockedDates : [];
+  if (blockedDates.includes(date)) return true;
+  return false;
+}
+
+function isSlotBlocked(date: string, startTime: string): boolean {
+  const blockedSlots = Array.isArray(store.studioConfig.blockedSlots) ? store.studioConfig.blockedSlots : [];
+  return blockedSlots.some((s) => s.date === date && s.startTime === startTime);
+}
+
 export const appointmentService = {
-  availability(date: string, _durationMin?: number): AvailabilityBlock[] {
+  availability(date: string, _durationMin?: number): AvailabilityResponse {
     expirePendingAppointments();
     const shifts = getActiveShifts();
+
+    if (isDateBlocked(date)) {
+      const blocks: AvailabilityBlock[] = shifts.map((shift) => {
+        const win = shiftWindow(date, shift);
+        const label = shift.label?.trim() || `${shift.start} - ${shift.end}`;
+        return {
+          start: shift.start,
+          end: shift.end,
+          label,
+          startAt: win ? win.start.toISOString() : '',
+          endAt: win ? win.end.toISOString() : '',
+          available: false,
+        };
+      });
+      return {
+        dayBlocked: true,
+        message: 'No hay atención disponible en esta fecha',
+        blocks,
+      };
+    }
+
     const activeAppointments = [...store.appointments.values()].filter(
       (a) => !a.deletedAt && ACTIVE_STATUSES.includes(a.status),
     );
 
-    return shifts.map((shift) => {
+    const blocks = shifts.map((shift) => {
       const win = shiftWindow(date, shift);
       const label = shift.label?.trim() || `${shift.start} - ${shift.end}`;
       if (!win) {
@@ -89,15 +136,18 @@ export const appointmentService = {
         const aEnd = new Date(a.endAt);
         return overlap(win.start, win.end, aStart, aEnd);
       });
+      const slotBlocked = isSlotBlocked(date, shift.start);
       return {
         start: shift.start,
         end: shift.end,
         label,
         startAt: win.start.toISOString(),
         endAt: win.end.toISOString(),
-        available: !conflicts,
+        available: !conflicts && !slotBlocked,
       };
     });
+
+    return { dayBlocked: false, blocks };
   },
 
   async create(input: CreateAppointmentInput): Promise<AppointmentRecord> {
@@ -123,11 +173,18 @@ export const appointmentService = {
     // Turnos fijos: la cita debe coincidir con un bloque configurado para ese día y reservar el bloque completo
     const dateStr = toStudyDate(start);
     const shifts = getActiveShifts();
+    if (isDateBlocked(dateStr)) {
+      throw new AppError('VALIDATION_ERROR', 422, 'No hay atención disponible en esta fecha. Por favor selecciona otra fecha.');
+    }
+
     const matchedShift = shifts
       .map((shift) => ({ shift, win: shiftWindow(dateStr, shift) }))
       .find(({ win }) => win && win.start.getTime() === start.getTime());
     if (!matchedShift || !matchedShift.win) {
       throw new AppError('VALIDATION_ERROR', 422, 'El horario seleccionado no corresponde a un turno disponible.');
+    }
+    if (isSlotBlocked(dateStr, matchedShift.shift.start)) {
+      throw new AppError('VALIDATION_ERROR', 422, 'El turno seleccionado no está disponible. Por favor elige otro horario.');
     }
     const end = matchedShift.win.end;
 
@@ -156,6 +213,7 @@ export const appointmentService = {
 
     const rec: AppointmentRecord = {
       id: store.newId(),
+      clientId: (input as any).clientId ?? null,
       clientName: input.clientName,
       clientPhone: input.clientPhone,
       clientEmail: input.clientEmail,

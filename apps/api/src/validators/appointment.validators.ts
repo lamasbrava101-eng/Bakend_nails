@@ -3,6 +3,7 @@ import { lengthCodeEnum } from './catalog.validators.js';
 
 export const createAppointmentSchema = z
   .object({
+    clientId: z.string().min(1).optional(),
     clientName: z.string().min(1),
     clientPhone: z.string().min(1),
     clientEmail: z.string().email(),
