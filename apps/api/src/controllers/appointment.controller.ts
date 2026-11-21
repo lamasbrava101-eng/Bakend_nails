@@ -4,13 +4,18 @@ import { appointmentService } from '../services/appointment.service.js';
 import { store } from '../store/inMemoryStore.js';
 import type { AppointmentRecord, AppointmentStatus } from '../types/index.js';
 
+function isStaffRole(role: unknown): role is 'ADMIN' | 'MANICURIST' {
+  return role === 'ADMIN' || role === 'MANICURIST';
+}
+
 function canRevealSalonLocation(appt: AppointmentRecord): boolean {
   // Ubicación exacta revelada únicamente cuando el comprobante de depósito fue validado/registrado
   return Boolean(appt.voucherUploadedAt) && appt.status !== 'EXPIRED' && appt.status !== 'CANCELLED';
 }
 
-function withSalonLocation<T extends AppointmentRecord>(appt: T) {
-  if (!canRevealSalonLocation(appt)) return appt;
+function withSalonLocation<T extends AppointmentRecord>(appt: T, opts?: { forceReveal?: boolean }) {
+  const reveal = opts?.forceReveal || canRevealSalonLocation(appt);
+  if (!reveal) return appt;
   const { exactAddress, arrivalReference, mapsUrl } = store.studioConfig;
   return {
     ...appt,
@@ -54,10 +59,23 @@ export const appointmentController = {
     }
   },
 
+  async staffList(req: Request, res: Response, next: NextFunction) {
+    try {
+      const status = typeof req.query.status === 'string' ? (req.query.status as AppointmentStatus) : undefined;
+      const date = typeof req.query.date === 'string' ? req.query.date : undefined;
+      const data = appointmentService.listForStaff({ status, date });
+      const forceReveal = isStaffRole(req.user?.role);
+      res.status(200).json({ data: data.map((a) => withSalonLocation(a, { forceReveal })) });
+    } catch (e) {
+      next(e);
+    }
+  },
+
   async get(req: Request, res: Response, next: NextFunction) {
     try {
       const appt = appointmentService.get(req.params.id);
-      res.status(200).json({ data: withSalonLocation(appt) });
+      const forceReveal = isStaffRole(req.user?.role);
+      res.status(200).json({ data: withSalonLocation(appt, { forceReveal }) });
     } catch (e) {
       next(e);
     }
@@ -78,7 +96,8 @@ export const appointmentController = {
       const from = req.query.from as string | undefined;
       const to = req.query.to as string | undefined;
       const data = appointmentService.adminList({ status: status as AppointmentStatus | undefined, from, to });
-      res.status(200).json({ data: data.map(withSalonLocation) });
+      const forceReveal = isStaffRole(req.user?.role);
+      res.status(200).json({ data: data.map((a) => withSalonLocation(a, { forceReveal })) });
     } catch (e) {
       next(e);
     }
@@ -104,8 +123,12 @@ export const appointmentController = {
 
   async complete(req: Request, res: Response, next: NextFunction) {
     try {
-      const appt = appointmentService.complete(req.params.id);
-      res.status(200).json({ data: withSalonLocation(appt) });
+      const actor = isStaffRole(req.user?.role) && req.user?.id
+        ? { userId: req.user.id, role: req.user.role as 'ADMIN' | 'MANICURIST' }
+        : undefined;
+      const appt = appointmentService.complete(req.params.id, req.body ?? {}, actor);
+      const forceReveal = isStaffRole(req.user?.role);
+      res.status(200).json({ data: withSalonLocation(appt, { forceReveal }) });
     } catch (e) {
       next(e);
     }

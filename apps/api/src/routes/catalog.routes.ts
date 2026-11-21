@@ -21,19 +21,19 @@ router.get('/effects', catalogController.listEffects);
 router.get('/lengths', catalogController.listLengths);
 router.post('/quote', validate(quoteSchema), catalogController.quote);
 
-// Services admin/gestión (web admin y app para roles autorizados)
-router.post('/services', requireAuth, requireRole('ADMIN', 'MANICURIST'), validate(createServiceSchema), catalogController.createService);
-router.put('/services/:id', requireAuth, requireRole('ADMIN', 'MANICURIST'), validate(updateServiceSchema), catalogController.updateService);
-router.delete('/services/:id', requireAuth, requireRole('ADMIN', 'MANICURIST'), catalogController.deleteService);
+// Services admin (solo ADMIN)
+router.post('/services', requireAuth, requireRole('ADMIN'), validate(createServiceSchema), catalogController.createService);
+router.put('/services/:id', requireAuth, requireRole('ADMIN'), validate(updateServiceSchema), catalogController.updateService);
+router.delete('/services/:id', requireAuth, requireRole('ADMIN'), catalogController.deleteService);
 
-// Effects admin/gestión
-router.post('/effects', requireAuth, requireRole('ADMIN', 'MANICURIST'), validate(createEffectSchema), catalogController.createEffect);
-router.put('/effects/:id', requireAuth, requireRole('ADMIN', 'MANICURIST'), validate(updateEffectSchema), catalogController.updateEffect);
-router.delete('/effects/:id', requireAuth, requireRole('ADMIN', 'MANICURIST'), catalogController.deleteEffect);
+// Effects admin (solo ADMIN)
+router.post('/effects', requireAuth, requireRole('ADMIN'), validate(createEffectSchema), catalogController.createEffect);
+router.put('/effects/:id', requireAuth, requireRole('ADMIN'), validate(updateEffectSchema), catalogController.updateEffect);
+router.delete('/effects/:id', requireAuth, requireRole('ADMIN'), catalogController.deleteEffect);
 
-// Lengths admin/gestión
-router.post('/lengths', requireAuth, requireRole('ADMIN', 'MANICURIST'), validate(createLengthSchema), catalogController.createLength);
-router.put('/lengths/:id', requireAuth, requireRole('ADMIN', 'MANICURIST'), validate(updateLengthSchema), catalogController.updateLength);
-router.delete('/lengths/:id', requireAuth, requireRole('ADMIN', 'MANICURIST'), catalogController.deleteLength);
+// Lengths admin (solo ADMIN)
+router.post('/lengths', requireAuth, requireRole('ADMIN'), validate(createLengthSchema), catalogController.createLength);
+router.put('/lengths/:id', requireAuth, requireRole('ADMIN'), validate(updateLengthSchema), catalogController.updateLength);
+router.delete('/lengths/:id', requireAuth, requireRole('ADMIN'), catalogController.deleteLength);
 
 export default router;

@@ -39,7 +39,16 @@ export const appointmentLogSchema = z
   })
   .strict();
 
+export const completeAppointmentSchema = z
+  .object({
+    workNotes: z.string().trim().min(1).max(2000).optional(),
+    attendedShift: z.string().trim().min(1).max(100).optional(),
+    attendedAt: z.string().min(1).optional(),
+  })
+  .strict();
+
 export type CreateAppointmentInput = z.infer<typeof createAppointmentSchema>;
 export type VoucherInput = z.infer<typeof voucherSchema>;
 export type CancelAppointmentInput = z.infer<typeof cancelAppointmentSchema>;
 export type AppointmentLogInput = z.infer<typeof appointmentLogSchema>;
+export type CompleteAppointmentInput = z.infer<typeof completeAppointmentSchema>;

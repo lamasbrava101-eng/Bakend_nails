@@ -61,6 +61,9 @@ function buildHistoryItem(appt: AppointmentRecord) {
     addons,
     withRemoval: Boolean(appt.includeRemoval),
     status: appt.status,
+    workNotes: appt.workNotes ?? null,
+    attendedShift: appt.attendedShift ?? null,
+    attendedAt: appt.attendedAt ?? null,
     createdAt: appt.createdAt,
   };
 }

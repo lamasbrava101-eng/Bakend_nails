@@ -11,12 +11,14 @@ import inventoryRoutes from './routes/inventory.routes.js';
 import { studioConfigController } from './controllers/studioConfig.controller.js';
 import { catalogController } from './controllers/catalog.controller.js';
 import { adminClientsController } from './controllers/adminClients.controller.js';
+import { appointmentController } from './controllers/appointment.controller.js';
 import { requireAuth } from './middleware/requireAuth.js';
 import { optionalAuth } from './middleware/optionalAuth.js';
 import { requireRole } from './middleware/requireRole.js';
 import { validate } from './middleware/validate.js';
 import { quoteSchema } from './validators/catalog.validators.js';
 import { studioConfigSchema } from './validators/studioConfig.validators.js';
+import { completeAppointmentSchema } from './validators/appointment.validators.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { env } from './config/env.js';
 
@@ -62,10 +64,16 @@ export function createApp() {
   api.use('/clients', techSheetRoutes);
   api.use('/catalog', catalogRoutes);
   api.post('/quote', validate(quoteSchema), catalogController.quote);
+
+  // Citas (operación staff): consulta y registro de trabajo realizado
+  api.get('/appointments', requireAuth, requireRole('ADMIN', 'MANICURIST'), appointmentController.staffList);
+  api.patch('/appointments/:id/complete', requireAuth, requireRole('ADMIN', 'MANICURIST'), validate(completeAppointmentSchema), appointmentController.complete);
+
   api.use('/', appointmentRoutes);
   api.get('/studio-config', optionalAuth, studioConfigController.get);
-  api.put('/studio-config', requireAuth, requireRole('ADMIN', 'MANICURIST'), validate(studioConfigSchema), studioConfigController.update);
-  api.patch('/studio-config', requireAuth, requireRole('ADMIN', 'MANICURIST'), validate(studioConfigSchema), studioConfigController.update);
+  // Mutaciones de configuración del estudio: solo ADMIN
+  api.put('/studio-config', requireAuth, requireRole('ADMIN'), validate(studioConfigSchema), studioConfigController.update);
+  api.patch('/studio-config', requireAuth, requireRole('ADMIN'), validate(studioConfigSchema), studioConfigController.update);
   api.get('/admin/clients', requireAuth, requireRole('ADMIN', 'MANICURIST'), adminClientsController.list);
   api.use('/admin', adminRoutes);
   api.use('/inventory', inventoryRoutes);

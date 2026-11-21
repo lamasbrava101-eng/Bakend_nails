@@ -107,6 +107,11 @@ export interface AppointmentRecord {
   voucherUrl: string | null;
   voucherUploadedAt: string | null;
   remindedAt: string | null;
+  workNotes?: string | null;
+  attendedShift?: string | null;
+  attendedAt?: string | null;
+  completedByUserId?: string | null;
+  completedByRole?: 'ADMIN' | 'MANICURIST' | null;
   createdAt: string;
   deletedAt: string | null;
 }

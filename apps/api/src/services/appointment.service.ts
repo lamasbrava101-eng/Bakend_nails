@@ -275,6 +275,17 @@ export const appointmentService = {
     return appointmentRepo.list(filter);
   },
 
+  listForStaff(filter?: { status?: AppointmentStatus; date?: string }): AppointmentRecord[] {
+    expirePendingAppointments();
+    const items = appointmentRepo.list({ status: filter?.status });
+    if (filter?.date && /^\d{4}-\d{2}-\d{2}$/.test(filter.date)) {
+      return items
+        .filter((a) => toStudyDate(new Date(a.startAt)) === filter.date)
+        .sort((a, b) => a.startAt.localeCompare(b.startAt));
+    }
+    return items.sort((a, b) => a.startAt.localeCompare(b.startAt));
+  },
+
   approve(id: string): AppointmentRecord {
     expirePendingAppointments();
     const appt = appointmentRepo.find(id);
@@ -299,14 +310,31 @@ export const appointmentService = {
     return updated;
   },
 
-  complete(id: string): AppointmentRecord {
+  complete(
+    id: string,
+    payload?: { workNotes?: string; attendedShift?: string; attendedAt?: string },
+    actor?: { userId: string; role: 'ADMIN' | 'MANICURIST' },
+  ): AppointmentRecord {
     expirePendingAppointments();
     const appt = appointmentRepo.find(id);
     if (!appt) throw new AppError('NOT_FOUND', 404, 'Appointment not found');
+    if (appt.status === 'CANCELLED' || appt.status === 'EXPIRED') {
+      throw new AppError('INVALID_STATUS_TRANSITION', 409, 'Invalid status transition');
+    }
     if (appt.status !== 'CONFIRMED') {
       throw new AppError('INVALID_STATUS_TRANSITION', 409, 'Invalid status transition');
     }
-    const updated = appointmentRepo.update(id, { status: 'COMPLETED' });
+    const workNotes = payload?.workNotes?.trim() || null;
+    const attendedShift = payload?.attendedShift?.trim() || null;
+    const attendedAt = payload?.attendedAt?.trim() || new Date().toISOString();
+    const updated = appointmentRepo.update(id, {
+      status: 'COMPLETED',
+      workNotes,
+      attendedShift,
+      attendedAt,
+      completedByUserId: actor?.userId ?? null,
+      completedByRole: actor?.role ?? null,
+    });
     if (!updated) throw new AppError('NOT_FOUND', 404, 'Appointment not found');
     return updated;
   },
