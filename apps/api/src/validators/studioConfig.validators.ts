@@ -58,6 +58,9 @@ export const studioConfigSchema = z
     healthNotice: z.string().optional(),
     punctualityPolicy: z.string().optional(),
     contactInfo: z.string().optional(),
+    // WhatsApp del estudio (recordatorios)
+    adminWhatsappPhone: z.string().optional(),
+    manicuristWhatsappPhone: z.string().optional(),
     // ubicación privada del salón (solo gestión/staff y tras depósito validado en cita)
     exactAddress: z.string().optional(),
     arrivalReference: z.string().optional(),

@@ -18,7 +18,7 @@ import { requireRole } from './middleware/requireRole.js';
 import { validate } from './middleware/validate.js';
 import { quoteSchema } from './validators/catalog.validators.js';
 import { studioConfigSchema } from './validators/studioConfig.validators.js';
-import { completeAppointmentSchema } from './validators/appointment.validators.js';
+import { completeAppointmentSchema, cancelAppointmentSchema } from './validators/appointment.validators.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { env } from './config/env.js';
 
@@ -64,6 +64,10 @@ export function createApp() {
   api.use('/clients', techSheetRoutes);
   api.use('/catalog', catalogRoutes);
   api.post('/quote', validate(quoteSchema), catalogController.quote);
+
+  // Citas (clienta autenticada)
+  api.get('/my-appointments', requireAuth, requireRole('CLIENT'), appointmentController.myList);
+  api.post('/my-appointments/:id/cancel', requireAuth, requireRole('CLIENT'), validate(cancelAppointmentSchema), appointmentController.myCancel);
 
   // Citas (operación staff): consulta y registro de trabajo realizado
   api.get('/appointments', requireAuth, requireRole('ADMIN', 'MANICURIST'), appointmentController.staffList);

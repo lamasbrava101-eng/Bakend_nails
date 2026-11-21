@@ -2,6 +2,7 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import bcrypt from 'bcryptjs';
 import { env } from '../config/env.js';
+import { normalizePhoneE164 } from '../utils/phone.js';
 import { loadFromDisk, saveToDisk, type PersistedData } from './persistence.js';
 import type {
   UserRecord,
@@ -146,6 +147,8 @@ function normalizeStudioConfig(raw: Partial<StudioConfigRecord> | null | undefin
   const healthNotice = String(base.healthNotice ?? '').trim() || DEFAULT_HEALTH_NOTICE;
   const punctualityPolicy = String(base.punctualityPolicy ?? '').trim() || DEFAULT_PUNCTUALITY_POLICY;
   const contactInfo = String(base.contactInfo ?? '');
+  const adminWhatsappPhone = normalizePhoneE164(String(base.adminWhatsappPhone ?? ''));
+  const manicuristWhatsappPhone = normalizePhoneE164(String(base.manicuristWhatsappPhone ?? ''));
   const exactAddress = String(base.exactAddress ?? '');
   const arrivalReference = String(base.arrivalReference ?? '');
   const mapsUrl = String(base.mapsUrl ?? '');
@@ -176,6 +179,8 @@ function normalizeStudioConfig(raw: Partial<StudioConfigRecord> | null | undefin
     healthNotice,
     punctualityPolicy,
     contactInfo,
+    adminWhatsappPhone,
+    manicuristWhatsappPhone,
     exactAddress,
     arrivalReference,
     mapsUrl,
@@ -445,6 +450,8 @@ export class InMemoryStore {
       punctualityPolicy:
         'Si llegas más de 10 minutos atrasada a tu cita, perderás tu turno y el depósito no es reembolsable.',
       contactInfo: 'Calceta, Manabí · Contáctanos por redes o WhatsApp para más información.',
+      adminWhatsappPhone: '',
+      manicuristWhatsappPhone: '',
       exactAddress: '',
       arrivalReference: '',
       mapsUrl: '',

@@ -9,8 +9,8 @@ function isStaffRole(role: unknown): role is 'ADMIN' | 'MANICURIST' {
 }
 
 function canRevealSalonLocation(appt: AppointmentRecord): boolean {
-  // Ubicación exacta revelada únicamente cuando el comprobante de depósito fue validado/registrado
-  return Boolean(appt.voucherUploadedAt) && appt.status !== 'EXPIRED' && appt.status !== 'CANCELLED';
+  // Ubicación exacta para clienta: solo con depósito validado/cita confirmada o completada
+  return appt.status === 'CONFIRMED' || appt.status === 'COMPLETED';
 }
 
 function withSalonLocation<T extends AppointmentRecord>(appt: T, opts?: { forceReveal?: boolean }) {
@@ -137,6 +137,30 @@ export const appointmentController = {
   async cancel(req: Request, res: Response, next: NextFunction) {
     try {
       const appt = appointmentService.cancel(req.params.id, req.body?.reason);
+      const forceReveal = isStaffRole(req.user?.role);
+      res.status(200).json({ data: withSalonLocation(appt, { forceReveal }) });
+    } catch (e) {
+      next(e);
+    }
+  },
+
+  async myList(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) throw new AppError('UNAUTHORIZED', 401, 'Authentication required');
+      const data = await appointmentService.listForClient(userId);
+      // Sanitiza salonLocation para clienta según estado (solo CONFIRMED/COMPLETED)
+      res.status(200).json({ data: data.map((a) => withSalonLocation(a)) });
+    } catch (e) {
+      next(e);
+    }
+  },
+
+  async myCancel(req: Request, res: Response, next: NextFunction) {
+    try {
+      const userId = req.user?.id;
+      if (!userId) throw new AppError('UNAUTHORIZED', 401, 'Authentication required');
+      const appt = await appointmentService.cancelForClient(userId, req.params.id, req.body?.reason);
       res.status(200).json({ data: withSalonLocation(appt) });
     } catch (e) {
       next(e);

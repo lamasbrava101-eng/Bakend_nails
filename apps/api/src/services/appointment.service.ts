@@ -2,13 +2,16 @@ import { AppError } from '../utils/errors.js';
 import { store } from '../store/inMemoryStore.js';
 import { appointmentRepo } from '../repositories/appointment.repo.js';
 import { catalogRepo } from '../repositories/catalog.repo.js';
+import { usersRepo } from '../repositories/users.repo.js';
 import { catalogService } from './catalog.service.js';
 import { localTimeToUtc, toStudyDate } from '../utils/time.js';
+import { normalizePhoneE164 } from '../utils/phone.js';
 import { validateVoucherImage } from '../utils/voucherOcr.js';
 import type {
   AppointmentRecord,
   AppointmentStatus,
   StudioShiftRecord,
+  UserRecord,
 } from '../types/index.js';
 import type { CreateAppointmentInput } from '../validators/appointment.validators.js';
 
@@ -215,8 +218,8 @@ export const appointmentService = {
       id: store.newId(),
       clientId: (input as any).clientId ?? null,
       clientName: input.clientName,
-      clientPhone: input.clientPhone,
-      clientEmail: input.clientEmail,
+      clientPhone: normalizePhoneE164(input.clientPhone) || input.clientPhone,
+      clientEmail: String(input.clientEmail || '').trim().toLowerCase(),
       serviceId: input.serviceId,
       serviceName: service.name,
       length: input.length,
@@ -230,6 +233,8 @@ export const appointmentService = {
       voucherUrl,
       voucherUploadedAt,
       remindedAt: null,
+      reminder1hSentAt: null,
+      reminder1hStatus: null,
       createdAt: new Date().toISOString(),
       deletedAt: null,
     };
@@ -353,6 +358,62 @@ export const appointmentService = {
         id: store.newId(),
         appointmentId: id,
         note: `Cancelled: ${reason}`,
+        createdAt: new Date().toISOString(),
+      });
+    }
+    return updated;
+  },
+
+  async listForClient(userId: string): Promise<AppointmentRecord[]> {
+    expirePendingAppointments();
+    const user = await usersRepo.findById(userId);
+    if (!user || user.deletedAt) throw new AppError('NOT_FOUND', 404, 'User not found');
+
+    const userEmail = String(user.email || '').trim().toLowerCase();
+    const userPhone = normalizePhoneE164(user.phone);
+
+    const matchesClientOwner = (appt: AppointmentRecord): boolean => {
+      if (appt.deletedAt) return false;
+      if (appt.clientId) return appt.clientId === userId;
+
+      // Respaldo seguro solo si clientId no está asignado a otro usuario distinto
+      const apptEmail = String(appt.clientEmail || '').trim().toLowerCase();
+      const apptPhone = normalizePhoneE164(appt.clientPhone);
+      const emailMatch = Boolean(userEmail && apptEmail && userEmail === apptEmail);
+      const phoneMatch = Boolean(userPhone && apptPhone && userPhone === apptPhone);
+      return emailMatch || phoneMatch;
+    };
+
+    return [...store.appointments.values()]
+      .filter(matchesClientOwner)
+      .sort((a, b) => a.startAt.localeCompare(b.startAt));
+  },
+
+  async cancelForClient(userId: string, id: string, reason?: string): Promise<AppointmentRecord> {
+    expirePendingAppointments();
+    const appt = appointmentRepo.find(id);
+    if (!appt) throw new AppError('NOT_FOUND', 404, 'Appointment not found');
+
+    const mine = (await this.listForClient(userId)).some((a) => a.id === id);
+    if (!mine) throw new AppError('NOT_FOUND', 404, 'Appointment not found');
+
+    if (appt.status !== 'PENDING_PAYMENT' && appt.status !== 'CONFIRMED') {
+      throw new AppError('INVALID_STATUS_TRANSITION', 409, 'Invalid status transition');
+    }
+
+    const now = Date.now();
+    const start = new Date(appt.startAt).getTime();
+    if (!Number.isFinite(start) || now >= start) {
+      throw new AppError('CANCEL_NOT_ALLOWED', 409, 'Solo puedes cancelar citas próximas antes de la hora de inicio.');
+    }
+
+    const updated = appointmentRepo.update(id, { status: 'CANCELLED' });
+    if (!updated) throw new AppError('NOT_FOUND', 404, 'Appointment not found');
+    if (reason) {
+      appointmentRepo.addLog({
+        id: store.newId(),
+        appointmentId: id,
+        note: `Cancelled by client: ${reason}`,
         createdAt: new Date().toISOString(),
       });
     }

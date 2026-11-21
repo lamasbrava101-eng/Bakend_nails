@@ -88,6 +88,8 @@ export type AppointmentStatus =
   | 'CANCELLED'
   | 'EXPIRED';
 
+export type Reminder1hStatus = 'PENDING' | 'SENT' | 'SKIPPED';
+
 export interface AppointmentRecord {
   id: string;
   clientId?: string | null;
@@ -107,6 +109,8 @@ export interface AppointmentRecord {
   voucherUrl: string | null;
   voucherUploadedAt: string | null;
   remindedAt: string | null;
+  reminder1hSentAt?: string | null;
+  reminder1hStatus?: Reminder1hStatus | null;
   workNotes?: string | null;
   attendedShift?: string | null;
   attendedAt?: string | null;
@@ -186,6 +190,9 @@ export interface StudioConfigRecord {
   healthNotice: string;
   punctualityPolicy: string;
   contactInfo: string;
+  // WhatsApp del estudio (recordatorios)
+  adminWhatsappPhone: string;
+  manicuristWhatsappPhone: string;
   // Ubicación privada del salón (solo revelada tras depósito validado / staff autorizado)
   exactAddress: string;
   arrivalReference: string;

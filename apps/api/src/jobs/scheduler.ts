@@ -2,6 +2,9 @@ import cron from 'node-cron';
 import nodemailer from 'nodemailer';
 import { store } from '../store/inMemoryStore.js';
 import { expirePendingAppointments } from '../services/appointment.service.js';
+import { processWhatsApp1hReminders } from '../services/reminder.service.js';
+
+let reminderIntervalStarted = false;
 
 export function startScheduler(): void {
   cron.schedule('* * * * *', async () => {
@@ -13,6 +16,23 @@ export function startScheduler(): void {
       console.error('Scheduler error:', e);
     }
   });
+
+  // Job periódico cada 5 minutos para recordatorios WhatsApp 1h antes (idempotente)
+  if (!reminderIntervalStarted) {
+    reminderIntervalStarted = true;
+    const runWhatsAppReminders = async () => {
+      try {
+        await processWhatsApp1hReminders();
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.error('WhatsApp reminder job error:', e);
+      }
+    };
+    void runWhatsAppReminders();
+    setInterval(() => {
+      void runWhatsAppReminders();
+    }, 5 * 60 * 1000);
+  }
 }
 
 async function sendReminders(): Promise<void> {
