@@ -10,21 +10,21 @@ export const techSheetsRepo = {
     const existing = store.techSheets.get(clientId);
     const now = new Date().toISOString();
     const sheet: TechSheetRecord = existing
-      ? { ...existing, ...patch, updatedAt: now }
+      ? { ...existing, updatedAt: now }
       : {
           id: store.newId(),
           clientId,
-          allergies: patch.allergies ?? null,
-          nailType: patch.nailType ?? null,
-          preferredTones: patch.preferredTones ?? null,
-          photoUrl: patch.photoUrl ?? null,
+          allergies: null,
+          nailType: null,
+          preferredTones: null,
+          photoUrl: null,
           updatedAt: now,
         };
-    // apply patch fields explicitly
+    // Perfil simplificado: solo alergias; el resto se mantiene limpio
     if (patch.allergies !== undefined) sheet.allergies = patch.allergies ?? null;
-    if (patch.nailType !== undefined) sheet.nailType = patch.nailType ?? null;
-    if (patch.preferredTones !== undefined) sheet.preferredTones = patch.preferredTones ?? null;
-    if (patch.photoUrl !== undefined) sheet.photoUrl = patch.photoUrl ?? null;
+    sheet.nailType = null;
+    sheet.preferredTones = null;
+    sheet.photoUrl = null;
     sheet.updatedAt = now;
     store.techSheets.set(clientId, sheet);
     return sheet;

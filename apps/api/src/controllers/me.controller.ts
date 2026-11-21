@@ -44,14 +44,25 @@ export const techSheetController = {
   async get(req: Request, res: Response, next: NextFunction) {
     try {
       const clientId = req.params.id;
-      if (req.user!.id !== clientId && req.user!.role !== 'ADMIN') {
-        throw new AppError('NOT_FOUND', 404, 'Resource not found');
+      const user = req.user!;
+      const isOwner = user.id === clientId;
+      const isStaff = user.role === 'ADMIN' || user.role === 'MANICURIST';
+      if (!isOwner && !isStaff) {
+        throw new AppError('FORBIDDEN', 403, 'No tienes permiso para consultar esta información.');
       }
       const sheet = await techSheetsRepo.findByClient(clientId);
       if (!sheet) {
         throw new AppError('NOT_FOUND', 404, 'Tech sheet not found');
       }
-      res.status(200).json({ data: sheet });
+      // Perfil de clienta simplificado: solo alergias
+      res.status(200).json({
+        data: {
+          id: sheet.id,
+          clientId: sheet.clientId,
+          allergies: sheet.allergies ?? null,
+          updatedAt: sheet.updatedAt,
+        },
+      });
     } catch (e) {
       next(e);
     }
@@ -60,19 +71,32 @@ export const techSheetController = {
   async update(req: Request, res: Response, next: NextFunction) {
     try {
       const clientId = req.params.id;
-      if (req.user!.id !== clientId && req.user!.role !== 'ADMIN') {
-        throw new AppError('NOT_FOUND', 404, 'Resource not found');
+      const user = req.user!;
+      const isOwner = user.id === clientId;
+      const isStaff = user.role === 'ADMIN' || user.role === 'MANICURIST';
+      // La clienta solo puede editar su propia información/alergias; staff puede gestionar fichas
+      if (!isOwner && !isStaff) {
+        throw new AppError('FORBIDDEN', 403, 'No tienes permiso para modificar esta información.');
+      }
+      if (user.role === 'CLIENT' && !isOwner) {
+        throw new AppError('FORBIDDEN', 403, 'No tienes permiso para modificar esta información.');
       }
       const body = req.body as Record<string, unknown>;
-      const preferredTones =
-        Array.isArray(body.preferredTones) ? body.preferredTones.join(', ') : (body.preferredTones as string | null | undefined);
+      const allergies = body.allergies === undefined ? undefined : (body.allergies as string | null);
       const sheet = await techSheetsRepo.upsert(clientId, {
-        allergies: body.allergies as string | null | undefined,
-        nailType: body.nailType as string | null | undefined,
-        preferredTones,
-        photoUrl: body.photoUrl as string | null | undefined,
+        allergies,
+        nailType: null,
+        preferredTones: null,
+        photoUrl: null,
       });
-      res.status(200).json({ data: sheet });
+      res.status(200).json({
+        data: {
+          id: sheet.id,
+          clientId: sheet.clientId,
+          allergies: sheet.allergies ?? null,
+          updatedAt: sheet.updatedAt,
+        },
+      });
     } catch (e) {
       next(e);
     }

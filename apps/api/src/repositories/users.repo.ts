@@ -49,6 +49,10 @@ export const usersRepo = {
     return user;
   },
 
+  async listClients(): Promise<UserRecord[]> {
+    return [...store.users.values()].filter((u) => u.role === 'CLIENT' && !u.deletedAt);
+  },
+
   async updatePassword(id: string, password: string): Promise<UserRecord | null> {
     const user = store.users.get(id);
     if (!user) return null;

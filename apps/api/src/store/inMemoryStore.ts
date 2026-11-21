@@ -16,11 +16,39 @@ import type {
   InventoryItemRecord,
   StudioConfigRecord,
   BankAccountRecord,
+  StudioShiftRecord,
 } from '../types/index.js';
 
+const DEFAULT_SHIFTS: StudioShiftRecord[] = [
+  { start: '08:00', end: '11:00', label: '08:00 - 11:00', active: true },
+  { start: '11:00', end: '14:00', label: '11:00 - 14:00', active: true },
+  { start: '14:00', end: '17:00', label: '14:00 - 17:00', active: true },
+  { start: '17:00', end: '20:00', label: '17:00 - 20:00', active: true },
+];
+
+const DEFAULT_BRAND_NAME = 'Nb_nails';
+const DEFAULT_HOME_WELCOME_TITLE = 'Bienvenida a tu espacio';
+const DEFAULT_HOME_WELCOME_SUBTITLE =
+  'Desde aquí podrás acceder a tu perfil, catálogo, cotizador y dar seguimiento a tus citas con total comodidad.';
+const DEFAULT_PROFILE_DESCRIPTION = 'Gestiona tu información personal y cuida tu bienestar en cada cita.';
+const DEFAULT_HEALTH_NOTICE =
+  'Por tu seguridad y bienestar, indícanos si presentas alergias (por ejemplo: a productos, monómero, acetona, látex, etc.).';
+const DEFAULT_PUNCTUALITY_POLICY =
+  'Si llegas más de 10 minutos atrasada a tu cita, perderás tu turno y el depósito no es reembolsable.';
+
+function normalizeShift(raw: any, idx: number): StudioShiftRecord | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const start = String(raw.start ?? '').trim();
+  const end = String(raw.end ?? '').trim();
+  if (!/^\d{2}:\d{2}$/.test(start) || !/^\d{2}:\d{2}$/.test(end)) return null;
+  const label = typeof raw.label === 'string' && raw.label.trim() ? raw.label.trim() : `${start} - ${end}`;
+  return { start, end, label, active: raw.active !== false, id: undefined } as StudioShiftRecord & { id?: string };
+  void idx;
+}
+
 function normalizeStudioConfig(raw: Partial<StudioConfigRecord> | null | undefined): StudioConfigRecord {
-  const base = raw ?? {};
-  const accountsInput = Array.isArray((base as any).accounts) ? ((base as any).accounts as any[]) : [];
+  const base = (raw ?? {}) as any;
+  const accountsInput = Array.isArray(base.accounts) ? (base.accounts as any[]) : [];
   let accounts: BankAccountRecord[] = accountsInput
     .filter((a) => a && typeof a === 'object')
     .map((a, idx) => ({
@@ -56,11 +84,31 @@ function normalizeStudioConfig(raw: Partial<StudioConfigRecord> | null | undefin
   }
 
   const primary = accounts.find((a) => a.active !== false) ?? accounts[0];
-  const depositAmountNum = Number((base as any).depositAmount);
+  const depositAmountNum = Number(base.depositAmount);
   const depositAmount = Number.isFinite(depositAmountNum) && depositAmountNum > 0 ? depositAmountNum : 5;
 
-  const recipientIdNumber = String((base as any).recipientIdNumber ?? base.idNumber ?? primary?.idNumber ?? '');
-  const recipientEmail = String((base as any).recipientEmail ?? primary?.email ?? '');
+  const recipientIdNumber = String(base.recipientIdNumber ?? base.idNumber ?? primary?.idNumber ?? '');
+  const recipientEmail = String(base.recipientEmail ?? primary?.email ?? '');
+
+  const shiftsInput = Array.isArray(base.shifts) ? base.shifts : null;
+  let shifts: StudioShiftRecord[] = [];
+  if (shiftsInput) {
+    shifts = shiftsInput
+      .map((s: any, idx: number) => normalizeShift(s, idx))
+      .filter((s: StudioShiftRecord | null): s is StudioShiftRecord => Boolean(s));
+  }
+  if (shifts.length === 0) shifts = DEFAULT_SHIFTS.map((s) => ({ ...s }));
+
+  const brandName = String(base.brandName ?? '').trim() || DEFAULT_BRAND_NAME;
+  const homeWelcomeTitle = String(base.homeWelcomeTitle ?? '').trim() || DEFAULT_HOME_WELCOME_TITLE;
+  const homeWelcomeSubtitle = String(base.homeWelcomeSubtitle ?? '').trim() || DEFAULT_HOME_WELCOME_SUBTITLE;
+  const profileDescription = String(base.profileDescription ?? '').trim() || DEFAULT_PROFILE_DESCRIPTION;
+  const healthNotice = String(base.healthNotice ?? '').trim() || DEFAULT_HEALTH_NOTICE;
+  const punctualityPolicy = String(base.punctualityPolicy ?? '').trim() || DEFAULT_PUNCTUALITY_POLICY;
+  const contactInfo = String(base.contactInfo ?? '');
+  const exactAddress = String(base.exactAddress ?? '');
+  const arrivalReference = String(base.arrivalReference ?? '');
+  const mapsUrl = String(base.mapsUrl ?? '');
 
   return {
     depositAmount,
@@ -73,6 +121,17 @@ function normalizeStudioConfig(raw: Partial<StudioConfigRecord> | null | undefin
     idNumber: String(base.idNumber ?? recipientIdNumber ?? primary?.idNumber ?? ''),
     instructions: String(base.instructions ?? ''),
     accounts,
+    shifts,
+    brandName,
+    homeWelcomeTitle,
+    homeWelcomeSubtitle,
+    profileDescription,
+    healthNotice,
+    punctualityPolicy,
+    contactInfo,
+    exactAddress,
+    arrivalReference,
+    mapsUrl,
   };
 }
 
@@ -95,7 +154,7 @@ export class InMemoryStore {
   appointmentLogs = new Map<string, AppointmentLogRecord[]>();
   inventoryItems = new Map<string, InventoryItemRecord>();
 
-  private _studioConfig: StudioConfigRecord = {
+  private _studioConfig: StudioConfigRecord = normalizeStudioConfig({
     depositAmount: 5,
     recipientIdNumber: '',
     recipientEmail: '',
@@ -106,7 +165,7 @@ export class InMemoryStore {
     idNumber: '',
     instructions: '',
     accounts: [],
-  };
+  });
 
   private persistTimer: NodeJS.Timeout | null = null;
   private dataFile: string;
@@ -308,7 +367,7 @@ export class InMemoryStore {
       accountNumber: '1234567890',
       accountType: 'Ahorros',
       idNumber: '1234567890',
-      instructions: 'Transferir $5.00 y subir comprobante.',
+      instructions: 'Transfiere el depósito indicado y sube tu comprobante para validar tu reserva.',
       accounts: [
         {
           bankName: 'Banco Pichincha',
@@ -320,6 +379,25 @@ export class InMemoryStore {
           active: true,
         },
       ],
+      shifts: [
+        { start: '08:00', end: '11:00', label: '08:00 - 11:00', active: true },
+        { start: '11:00', end: '14:00', label: '11:00 - 14:00', active: true },
+        { start: '14:00', end: '17:00', label: '14:00 - 17:00', active: true },
+        { start: '17:00', end: '20:00', label: '17:00 - 20:00', active: true },
+      ],
+      brandName: 'Nb_nails',
+      homeWelcomeTitle: 'Bienvenida a tu espacio',
+      homeWelcomeSubtitle:
+        'Desde aquí podrás explorar el catálogo, cotizar tu servicio y reservar tu cita con total comodidad.',
+      profileDescription: 'Gestiona tu información personal y cuida tu bienestar en cada cita.',
+      healthNotice:
+        'Por tu seguridad y bienestar, indícanos si presentas alergias (por ejemplo: a productos, monómero, acetona, látex, etc.).',
+      punctualityPolicy:
+        'Si llegas más de 10 minutos atrasada a tu cita, perderás tu turno y el depósito no es reembolsable.',
+      contactInfo: 'Calceta, Manabí · Contáctanos por redes o WhatsApp para más información.',
+      exactAddress: '',
+      arrivalReference: '',
+      mapsUrl: '',
     });
   }
 

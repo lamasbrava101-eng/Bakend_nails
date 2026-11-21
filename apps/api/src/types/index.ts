@@ -142,6 +142,13 @@ export interface BankAccountRecord {
   active?: boolean;
 }
 
+export interface StudioShiftRecord {
+  start: string; // HH:mm (hora local del estudio)
+  end: string;   // HH:mm
+  label?: string;
+  active?: boolean;
+}
+
 export interface StudioConfigRecord {
   depositAmount: number;
   recipientIdNumber: string;
@@ -154,6 +161,20 @@ export interface StudioConfigRecord {
   idNumber: string;
   instructions: string;
   accounts: BankAccountRecord[];
+  // Turnos fijos configurables (bloques de horario)
+  shifts: StudioShiftRecord[];
+  // Textos/mensajes personalizables de la app
+  brandName: string;
+  homeWelcomeTitle: string;
+  homeWelcomeSubtitle: string;
+  profileDescription: string;
+  healthNotice: string;
+  punctualityPolicy: string;
+  contactInfo: string;
+  // Ubicación privada del salón (solo revelada tras depósito validado / staff autorizado)
+  exactAddress: string;
+  arrivalReference: string;
+  mapsUrl: string;
 }
 
 declare global {

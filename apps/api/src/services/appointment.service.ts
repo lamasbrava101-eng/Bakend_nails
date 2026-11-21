@@ -3,11 +3,12 @@ import { store } from '../store/inMemoryStore.js';
 import { appointmentRepo } from '../repositories/appointment.repo.js';
 import { catalogRepo } from '../repositories/catalog.repo.js';
 import { catalogService } from './catalog.service.js';
-import { withinWorkingHours } from '../utils/time.js';
+import { localTimeToUtc, toStudyDate } from '../utils/time.js';
 import { validateVoucherImage } from '../utils/voucherOcr.js';
 import type {
   AppointmentRecord,
   AppointmentStatus,
+  StudioShiftRecord,
 } from '../types/index.js';
 import type { CreateAppointmentInput } from '../validators/appointment.validators.js';
 
@@ -32,32 +33,71 @@ function overlap(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date): boolean {
   return aStart.getTime() < bEnd.getTime() && bStart.getTime() < aEnd.getTime();
 }
 
-export const appointmentService = {
-  availability(date: string, durationMin: number): string[] {
-    expirePendingAppointments();
-    const slots: string[] = [];
-    const dayStart = new Date(`${date}T00:00:00.000Z`); // not used directly
-    void dayStart;
+function getActiveShifts(): StudioShiftRecord[] {
+  const shifts = Array.isArray(store.studioConfig.shifts) ? store.studioConfig.shifts : [];
+  const active = shifts.filter((s) => s && s.active !== false && /^\d{2}:\d{2}$/.test(s.start) && /^\d{2}:\d{2}$/.test(s.end));
+  return active.length > 0
+    ? active
+    : [
+        { start: '08:00', end: '11:00', label: '08:00 - 11:00', active: true },
+        { start: '11:00', end: '14:00', label: '11:00 - 14:00', active: true },
+        { start: '14:00', end: '17:00', label: '14:00 - 17:00', active: true },
+        { start: '17:00', end: '20:00', label: '17:00 - 20:00', active: true },
+      ];
+}
 
-    const WORK_START = 9 * 60;
-    const WORK_END = 18 * 60;
-    const step = 15;
-    const active = [...store.appointments.values()].filter(
+function shiftWindow(date: string, shift: StudioShiftRecord): { start: Date; end: Date } | null {
+  const start = localTimeToUtc(date, shift.start);
+  const end = localTimeToUtc(date, shift.end);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) return null;
+  if (end.getTime() <= start.getTime()) return null;
+  return { start, end };
+}
+
+export interface AvailabilityBlock {
+  start: string; // HH:mm local
+  end: string;   // HH:mm local
+  label: string;
+  startAt: string; // ISO UTC
+  endAt: string;   // ISO UTC
+  available: boolean;
+}
+
+export const appointmentService = {
+  availability(date: string, _durationMin?: number): AvailabilityBlock[] {
+    expirePendingAppointments();
+    const shifts = getActiveShifts();
+    const activeAppointments = [...store.appointments.values()].filter(
       (a) => !a.deletedAt && ACTIVE_STATUSES.includes(a.status),
     );
 
-    for (let min = WORK_START; min + durationMin <= WORK_END; min += step) {
-      const start = slotDate(date, min);
-      const end = new Date(start.getTime() + durationMin * 60 * 1000);
-      if (!withinWorkingHours(start, end)) continue;
-      const conflicts = active.some((a) => {
+    return shifts.map((shift) => {
+      const win = shiftWindow(date, shift);
+      const label = shift.label?.trim() || `${shift.start} - ${shift.end}`;
+      if (!win) {
+        return {
+          start: shift.start,
+          end: shift.end,
+          label,
+          startAt: '',
+          endAt: '',
+          available: false,
+        };
+      }
+      const conflicts = activeAppointments.some((a) => {
         const aStart = new Date(a.startAt);
         const aEnd = new Date(a.endAt);
-        return overlap(start, end, aStart, aEnd);
+        return overlap(win.start, win.end, aStart, aEnd);
       });
-      if (!conflicts) slots.push(start.toISOString());
-    }
-    return slots;
+      return {
+        start: shift.start,
+        end: shift.end,
+        label,
+        startAt: win.start.toISOString(),
+        endAt: win.end.toISOString(),
+        available: !conflicts,
+      };
+    });
   },
 
   async create(input: CreateAppointmentInput): Promise<AppointmentRecord> {
@@ -79,10 +119,17 @@ export const appointmentService = {
     if (isNaN(start.getTime())) {
       throw new AppError('VALIDATION_ERROR', 422, 'Invalid startAt');
     }
-    const end = new Date(start.getTime() + quote.durationMin * 60 * 1000);
-    if (!withinWorkingHours(start, end)) {
-      throw new AppError('VALIDATION_ERROR', 422, 'Appointment outside working hours');
+
+    // Turnos fijos: la cita debe coincidir con un bloque configurado para ese día y reservar el bloque completo
+    const dateStr = toStudyDate(start);
+    const shifts = getActiveShifts();
+    const matchedShift = shifts
+      .map((shift) => ({ shift, win: shiftWindow(dateStr, shift) }))
+      .find(({ win }) => win && win.start.getTime() === start.getTime());
+    if (!matchedShift || !matchedShift.win) {
+      throw new AppError('VALIDATION_ERROR', 422, 'El horario seleccionado no corresponde a un turno disponible.');
     }
+    const end = matchedShift.win.end;
 
     const active = [...store.appointments.values()].filter(
       (a) => !a.deletedAt && ACTIVE_STATUSES.includes(a.status),
@@ -245,13 +292,4 @@ export const appointmentService = {
   },
 };
 
-function slotDate(dateStr: string, minutesFromMidnight: number): Date {
-  const totalMinutes = minutesFromMidnight + 5 * 60;
-  const dayOffset = Math.floor(totalMinutes / (24 * 60));
-  const hh = Math.floor((totalMinutes % (24 * 60)) / 60);
-  const mm = totalMinutes % 60;
-  const base = new Date(`${dateStr}T00:00:00.000Z`);
-  base.setUTCDate(base.getUTCDate() + dayOffset);
-  base.setUTCHours(hh, mm, 0, 0);
-  return base;
-}
+// slotDate eliminado: la disponibilidad ahora usa turnos fijos configurados en studio-config.

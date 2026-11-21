@@ -2,10 +2,7 @@ import { z } from 'zod';
 
 export const techSheetSchema = z
   .object({
-    allergies: z.string().optional().nullable(),
-    nailType: z.string().optional().nullable(),
-    preferredTones: z.union([z.string(), z.array(z.string())]).optional().nullable(),
-    photoUrl: z.string().url().optional().nullable(),
+    allergies: z.string().max(1000).optional().nullable(),
   })
   .strict();
 

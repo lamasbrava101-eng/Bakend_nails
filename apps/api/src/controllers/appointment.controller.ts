@@ -1,7 +1,26 @@
 import type { Request, Response, NextFunction } from 'express';
 import { AppError } from '../utils/errors.js';
 import { appointmentService } from '../services/appointment.service.js';
-import type { AppointmentStatus } from '../types/index.js';
+import { store } from '../store/inMemoryStore.js';
+import type { AppointmentRecord, AppointmentStatus } from '../types/index.js';
+
+function canRevealSalonLocation(appt: AppointmentRecord): boolean {
+  // Ubicación exacta revelada únicamente cuando el comprobante de depósito fue validado/registrado
+  return Boolean(appt.voucherUploadedAt) && appt.status !== 'EXPIRED' && appt.status !== 'CANCELLED';
+}
+
+function withSalonLocation<T extends AppointmentRecord>(appt: T) {
+  if (!canRevealSalonLocation(appt)) return appt;
+  const { exactAddress, arrivalReference, mapsUrl } = store.studioConfig;
+  return {
+    ...appt,
+    salonLocation: {
+      exactAddress: exactAddress || '',
+      arrivalReference: arrivalReference || '',
+      mapsUrl: mapsUrl || '',
+    },
+  };
+}
 
 export const appointmentController = {
   async availability(req: Request, res: Response, next: NextFunction) {
@@ -11,9 +30,13 @@ export const appointmentController = {
       if (typeof date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
         throw new AppError('VALIDATION_ERROR', 422, 'Invalid date');
       }
-      const durationMin = Number(durationRaw);
-      if (!Number.isFinite(durationMin) || durationMin <= 0) {
-        throw new AppError('VALIDATION_ERROR', 422, 'Invalid durationMin');
+      let durationMin: number | undefined;
+      if (durationRaw !== undefined) {
+        const n = Number(durationRaw);
+        if (!Number.isFinite(n) || n <= 0) {
+          throw new AppError('VALIDATION_ERROR', 422, 'Invalid durationMin');
+        }
+        durationMin = n;
       }
       const data = appointmentService.availability(date, durationMin);
       res.status(200).json({ data });
@@ -25,7 +48,7 @@ export const appointmentController = {
   async create(req: Request, res: Response, next: NextFunction) {
     try {
       const appt = await appointmentService.create(req.body);
-      res.status(201).json({ data: appt });
+      res.status(201).json({ data: withSalonLocation(appt) });
     } catch (e) {
       next(e);
     }
@@ -34,7 +57,7 @@ export const appointmentController = {
   async get(req: Request, res: Response, next: NextFunction) {
     try {
       const appt = appointmentService.get(req.params.id);
-      res.status(200).json({ data: appt });
+      res.status(200).json({ data: withSalonLocation(appt) });
     } catch (e) {
       next(e);
     }
@@ -43,7 +66,7 @@ export const appointmentController = {
   async voucher(req: Request, res: Response, next: NextFunction) {
     try {
       const appt = await appointmentService.uploadVoucher(req.params.id, req.body);
-      res.status(200).json({ data: appt });
+      res.status(200).json({ data: withSalonLocation(appt) });
     } catch (e) {
       next(e);
     }
@@ -55,7 +78,7 @@ export const appointmentController = {
       const from = req.query.from as string | undefined;
       const to = req.query.to as string | undefined;
       const data = appointmentService.adminList({ status: status as AppointmentStatus | undefined, from, to });
-      res.status(200).json({ data });
+      res.status(200).json({ data: data.map(withSalonLocation) });
     } catch (e) {
       next(e);
     }
@@ -64,7 +87,7 @@ export const appointmentController = {
   async approve(req: Request, res: Response, next: NextFunction) {
     try {
       const appt = appointmentService.approve(req.params.id);
-      res.status(200).json({ data: appt });
+      res.status(200).json({ data: withSalonLocation(appt) });
     } catch (e) {
       next(e);
     }
@@ -73,7 +96,7 @@ export const appointmentController = {
   async reject(req: Request, res: Response, next: NextFunction) {
     try {
       const appt = appointmentService.reject(req.params.id);
-      res.status(200).json({ data: appt });
+      res.status(200).json({ data: withSalonLocation(appt) });
     } catch (e) {
       next(e);
     }
@@ -82,7 +105,7 @@ export const appointmentController = {
   async complete(req: Request, res: Response, next: NextFunction) {
     try {
       const appt = appointmentService.complete(req.params.id);
-      res.status(200).json({ data: appt });
+      res.status(200).json({ data: withSalonLocation(appt) });
     } catch (e) {
       next(e);
     }
@@ -91,7 +114,7 @@ export const appointmentController = {
   async cancel(req: Request, res: Response, next: NextFunction) {
     try {
       const appt = appointmentService.cancel(req.params.id, req.body?.reason);
-      res.status(200).json({ data: appt });
+      res.status(200).json({ data: withSalonLocation(appt) });
     } catch (e) {
       next(e);
     }
